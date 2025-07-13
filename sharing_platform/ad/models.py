@@ -20,8 +20,13 @@ EXCHANGE_PROPOSAL_STATUS = (
 
 
 def status_item_validator(value):
-    if value == "n":
+    if value not in ("a", "b",):
         raise ValidationError(gettext("select_item_state"))
+
+
+def exchange_item_validator(value):
+    if value not in ("s", "p", "r",):
+        raise ValidationError
 
 
 class ArticleCategory(models.Model):
@@ -30,30 +35,29 @@ class ArticleCategory(models.Model):
     description = models.CharField(max_length=150, blank=True)
 
 
-class Article(models.Model):
+class AdItem(models.Model):
     """ Предмет, участвующий в обмене """
-    id = models.CharField(default=uuid.uuid4(), primary_key=True)
+    id = models.CharField(max_length=50, default=uuid.uuid4(), primary_key=True)
     name = models.CharField(blank=False, max_length=30, default="")
     description = models.CharField(max_length=150, blank=True, default="")
     image = ...
-    category = models.ForeignKey(ArticleCategory, on_delete=models.PROTECT)
-    add_by = models.ForeignKey(User, null=False, on_delete=models.PROTECT)
-    status = models.CharField(choices=ITEM_CONDITION, default="n", blank=False, validators=(status_item_validator,))
+    category = models.ForeignKey(ArticleCategory, on_delete=models.SET_NULL, null=True)
+    add_by = models.ForeignKey(User, on_delete=models.CASCADE, null=False)
+    status = models.CharField(max_length=1, choices=ITEM_CONDITION, default="n", blank=False, validators=(status_item_validator,))
 
 
 class ExchangeProposal(models.Model):
     """ Предложение бартерного обмена """
-    id = models.CharField(default=uuid.uuid4(), primary_key=True)
-    sender = models.ForeignKey(User, on_delete=models.CASCADE)
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE)
-    given_item = models.ForeignKey(Article, on_delete=models.CASCADE)
-    received_item = models.ForeignKey(Article, on_delete=models.CASCADE)
-    status = models.CharField(choices=EXCHANGE_PROPOSAL_STATUS, default="p", blank=False)
+    id = models.CharField(max_length=50, default=uuid.uuid4(), primary_key=True)
+    status = models.CharField(max_length=1, choices=EXCHANGE_PROPOSAL_STATUS, default="p", blank=False, validators=(exchange_item_validator,))
+    sender_ad = models.ForeignKey(AdItem, on_delete=models.CASCADE, null=False, related_name="AdItem.id+")
+    receiver_ad = models.ForeignKey(AdItem, on_delete=models.CASCADE, null=False, related_name="AdItem.id+")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        if self.sender.id == self.receiver.id:
+        if self.sender_ad._id == self.receiver_ad._id:
             raise ValidationError(gettext("exchange_proposal_himself_error"))
-        if self.given_item.id == self.received_item.id:
-            raise ValidationError(gettext("article_match_error"))
+        if self.__class__.filter(id=self.id).exist():
+            if self.status == "s" or self.status == "r":
+                raise ValidationError("current_item_isnt_editable")  # Объявление, по которому состоялся обмен, или оно было отклонено, не подлежит редактированию.
         return super().clean()

@@ -1,3 +1,5 @@
 from django.contrib import admin
+from .models import AdItem, ArticleCategory
 
-# Register your models here.
+admin.site.register(AdItem)
+admin.site.register(ArticleCategory)
