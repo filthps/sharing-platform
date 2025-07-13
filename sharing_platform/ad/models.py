@@ -9,7 +9,13 @@ ITEM_CONDITION = (
     ("n", gettext("select_state")),
     ("a", gettext("new")),
     ("b", gettext("used")),
-    ("c", gettext("very_worn_item"))
+)
+
+
+EXCHANGE_PROPOSAL_STATUS = (
+    ("s", gettext("success")),
+    ("p", gettext("pending")),
+    ("r", gettext("rejected"))
 )
 
 
@@ -27,7 +33,8 @@ class ArticleCategory(models.Model):
 class Article(models.Model):
     """ Предмет, участвующий в обмене """
     id = models.CharField(default=uuid.uuid4(), primary_key=True)
-    description = models.CharField(max_length=150, blank=False, default="")
+    name = models.CharField(blank=False, max_length=30, default="")
+    description = models.CharField(max_length=150, blank=True, default="")
     image = ...
     category = models.ForeignKey(ArticleCategory, on_delete=models.PROTECT)
     add_by = models.ForeignKey(User, null=False, on_delete=models.PROTECT)
@@ -37,11 +44,16 @@ class Article(models.Model):
 class ExchangeProposal(models.Model):
     """ Предложение бартерного обмена """
     id = models.CharField(default=uuid.uuid4(), primary_key=True)
-    sender = models.ForeignKey(User, on_delete=models.PROTECT)
-    receiver = models.ForeignKey(User, on_delete=models.PROTECT)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE)
+    given_item = models.ForeignKey(Article, on_delete=models.CASCADE)
+    received_item = models.ForeignKey(Article, on_delete=models.CASCADE)
+    status = models.CharField(choices=EXCHANGE_PROPOSAL_STATUS, default="p", blank=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
         if self.sender.id == self.receiver.id:
-            raise ValidationError("exchange_proposal_himself")
+            raise ValidationError(gettext("exchange_proposal_himself_error"))
+        if self.given_item.id == self.received_item.id:
+            raise ValidationError(gettext("article_match_error"))
         return super().clean()
-
