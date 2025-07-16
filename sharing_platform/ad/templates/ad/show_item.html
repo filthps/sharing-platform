@@ -1,6 +1,45 @@
 {% extends "base/main.html" %}
+{% load i18n %}
 {% load static %}
 {% block head %}{% endblock head %}
-{% block body %}{% endblock body %}
+{% block body %}
+    <div class="item-preview">
+        <div class="l">
+            <h2>{{ ad.name }}</h2>
+            <p>{{ ad.description }}</p>
+        </div>
+        <div class="r">
+            <!--  image -->
+        </div>
+        <div class="exchange-status">
+        {% if has_input_exchange %}
+            {% if ad.add_by.id == request.user.id %}
+                <div class="exchange-items-loadzone">  {# xhr get - mousein #}
+                    <h3>{% trans "has_new_ex_items" %}</h3>  {# У вас имеются заявки! Загрузить заявки #}
+                    <ul></ul>
+                </div>
+            {% elif request.user.id == ad.receiver_ad.add_by.id %}
+                <div class="cur-item-has-ex"><p>{% trans "current_ed_has_ex" %}</p></div>  {# Данный предмет имеет заявки на обмен, спешите оставить заявку и вы #}
+                <div class="exchange-items-loadzone">  {# xhr get - mousein. Загрузить список СВОИХ предметов, которые можно предложить к обмену #}
+                    <noscript><h3>{% trans "redirect_to_choice_my_ad" %}</h3></noscript>  {# Перейти к выбору моих предметов для того, чтобы предолжить их взамен этому. #}
+                    <ul></ul>
+                </div>
+            {% endif %}
+        {% else %}
+            {% if ad.add_by.id == request.user.id %}
+                <div class="exchange-items-loadzone">  {# xhr get - mousein #}
+                    <h3>{% trans "has_not_new_ex_items_yet" %}</h3>  {# У вас пока нету заявок! #}
+                    <ul></ul>
+                </div>
+            {% else %}
+                <div class="exchange-items-loadzone">  {# xhr get - mousein. Загрузить список СВОИХ предметов, которые можно предложить к обмену #}
+                    <noscript><h3>{% trans "redirect_to_choice_my_ad" %}</h3></noscript>  {# Перейти к выбору моих предметов для того, чтобы предолжить их взамен этому. #}
+                    <ul></ul>
+                </div>
+            {% endif %}
+        {% endif %}
+        </div>
+    </div>
+{% endblock body %}
 {% block script %}{% endblock script %}
 

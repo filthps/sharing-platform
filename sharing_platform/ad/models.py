@@ -57,13 +57,14 @@ class ExchangeProposal(models.Model):
     id = models.CharField(max_length=50, default=uuid.uuid4(), primary_key=True, validators=(uuid_validator,))
     status = models.CharField(max_length=1, choices=EXCHANGE_PROPOSAL_STATUS, default="p", blank=False, validators=(exchange_item_validator,))
     sender_ad = models.ForeignKey(AdItem, on_delete=models.CASCADE, null=False, related_name="AdItem.id+")
-    receiver_ad = models.ForeignKey(AdItem, on_delete=models.CASCADE, null=False, related_name="AdItem.id+")
+    receiver_ad = models.ForeignKey(AdItem, blank=True, on_delete=models.CASCADE, null=True, default=None, related_name="AdItem.id+")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        if self.sender_ad._id == self.receiver_ad._id:
-            raise ValidationError(gettext("exchange_proposal_himself_error"))
-        if self.__class__.objects.filter(id=self.id).exist():
+        if self.receiver_ad is not None:
+            if self.sender_ad.id == self.receiver_ad.id:
+                raise ValidationError(gettext("exchange_proposal_himself_error"))
+        if self.__class__.objects.filter(id=self.id).exists():
             if self.status == "s" or self.status == "r":
                 raise ValidationError("current_item_isnt_editable")  # Объявление, по которому состоялся обмен, или оно было отклонено, не подлежит редактированию.
         return super().clean()

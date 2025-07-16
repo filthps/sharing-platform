@@ -2,18 +2,18 @@ import json
 import re
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.db.models import Q
 from django.views.generic.base import TemplateView
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer, HTMLFormRenderer
-from rest_framework.generics import ListAPIView, GenericAPIView, CreateAPIView, UpdateAPIView
+from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.parsers import JSONParser, FormParser
-from rest_framework.status import HTTP_404_NOT_FOUND, HTTP_200_OK, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_202_ACCEPTED, HTTP_400_BAD_REQUEST
-from django.db.models import Q
+from rest_framework.status import HTTP_404_NOT_FOUND, HTTP_200_OK, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_202_ACCEPTED, HTTP_400_BAD_REQUEST, HTTP_201_CREATED
 from .models import AdItem, ExchangeProposal
 from .serializers import AdItemSerializer, ExchangeProposalSerializer
-from django.core.validators import ValidationError
 
 
 class RequestTools:
@@ -32,18 +32,31 @@ class RequestTools:
 class ShowAdItem(APIView):
     renderer_classes = (JSONRenderer, TemplateHTMLRenderer, HTMLFormRenderer)
 
-    def get(self, *_, id_):
+    def get(self, request, id_):
         if id_ is None:
             return
-        entry = AdItem.objects.filter(id=id_)
-        if not entry.count():
+        ad_entry = AdItem.objects.filter(id=id_)
+        if not ad_entry.count():
             return Response(status=HTTP_404_NOT_FOUND)
-        return Response(template_name="ad/show_item.html", data={"data": entry}, status=HTTP_200_OK)
+        input_proposals = ExchangeProposal.objects.filter(receiver_ad__id=id_, status="p")
+        prop_already_sent = ExchangeProposal.objects.select_related("receiver_ad").filter(receiver_ad__id=request.user.id)  # Предложения на чужие вещи, инициированные мной
+        return Response(template_name="ad/show_item.html",
+                        data={"ad": ad_entry,
+                              "has_input_exchange": input_proposals.count(),
+                              "my_ex": prop_already_sent},
+                        status=HTTP_200_OK)
 
 
-class AdCatalog(ListAPIView, APIView):
+class CatalogPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 12
+
+
+class AdCatalog(ListAPIView, APIView, RequestTools):
     serializer_class = AdItemSerializer
-    #renderer_classes = (JSONRenderer, TemplateHTMLRenderer)
+    pagination_class = CatalogPagination
+    renderer_classes = (TemplateHTMLRenderer,)
 
     def get_queryset(self):
         if self.request.get_full_path().endswith("my/"):
@@ -66,10 +79,16 @@ class AdCatalog(ListAPIView, APIView):
         return queryset
 
     def get(self, request, *args, **kwargs):
-        print(request.GET)
         if not self.__is_valid_params(request.GET):
-            return Response(status=HTTP_422_UNPROCESSABLE_ENTITY)
-        return super().get(request, *args, **kwargs)
+            if self._is_ajax_request(request):
+                return Response(status=HTTP_422_UNPROCESSABLE_ENTITY)
+            return HttpResponseRedirect(status=HTTP_422_UNPROCESSABLE_ENTITY, redirect_to=request.get_full_path())
+        resp_instance: Response = self.list(request, *args, **kwargs)
+        print(resp_instance.data)
+        if self._is_ajax_request(request):
+            return Response(data=json.dumps(resp_instance.data), headers=resp_instance.headers, status=HTTP_200_OK)
+        return Response(template_name="ad/ad-items-list.html", status=HTTP_200_OK, headers=resp_instance.headers,
+                        data={"form": resp_instance.data})
 
     @staticmethod
     def __is_valid_params(request_data: dict):
@@ -111,21 +130,28 @@ class CreateAd(CreateAPIView, TemplateView):
 
     def get_serializer(self, *args, **kwargs):
         serializer = self.get_serializer_class()
-        serializer.request_user = self.request.user
-        return serializer(*args, **kwargs)
+        return serializer(*args, request_user=self.request.user, **kwargs)
 
 
 class CreateExchangeProposal(CreateAPIView, RequestTools):
-    """ Инициировать предложение обмена. """
+    """ Инициировать предложение обмена. Предложить товар на обмен. """
     serializer_class = ExchangeProposalSerializer
     queryset = ExchangeProposal
     renderer_classes = (HTMLFormRenderer, JSONRenderer)
 
-    def get_renderer_context(self):
-        pass
+    def get_serializer(self, *args, **kwargs):
+        serializer = self.get_serializer_class()
+        return serializer(*args, request_user=self.request.user, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        pass
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        if self._is_ajax_request(request):
+            return Response(status=HTTP_201_CREATED, headers=headers)
+        return HttpResponseRedirect(redirect_to=reverse("show-ad", kwargs={"id_": self.request.query_params["id_"]}),
+                                    status=HTTP_201_CREATED, headers=headers)
 
 
 class ExchangeAdItems(UpdateAPIView, RequestTools):
@@ -151,4 +177,5 @@ class ExchangeAdItems(UpdateAPIView, RequestTools):
         serializer.save()
         if self._is_ajax_request(request):
             return Response(status=HTTP_202_ACCEPTED)
-        return HttpResponseRedirect(redirect_to=reverse("show-ad", self.request.query_params["id_"]), status=HTTP_202_ACCEPTED)
+        return HttpResponseRedirect(redirect_to=reverse("show-ad", kwargs={"id_": self.request.query_params["id_"]}),
+                                    status=HTTP_202_ACCEPTED)

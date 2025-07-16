@@ -6,10 +6,11 @@
 </head>
 <body>
 <ul id="menu">
-    <li><a href="{% url 'admin' %}">admin</a></li>
+    {#<li><a href="{% url 'admin' %}">admin</a></li>#}
     <li><a href="{% url 'all-ad' %}">{% trans "catalog-all" %}</a></li>
-    <li><a href="{% url '' %}">{% trans "my-ad" %}</a></li>
-
+    <li><a href="{% url 'all-ad-my' %}">{% trans "catalog-my" %}</a></li>
+    <li><a href="{% url 'all-ad-tome' %}">{% trans "catalog-tome" %}</a></li>
+    <li><a href="{% url 'post-ad' %}">{% trans "add-ad-item" %}</a></li>
 </ul>
 <div id="main">
     {% block body %}{% endblock body %}

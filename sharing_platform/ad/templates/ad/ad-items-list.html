@@ -1,0 +1,22 @@
+{% extends "base/main.html" %}
+{% load i18n %}
+{% load static %}
+{% block head %}{% endblock head %}
+{% block body %}
+    <ul class="items_row">
+        {% for elem in form.results %}
+            <li value="{{ elem.id }}">
+                <h3><a href="{% url 'show-ad' elem.id  %}">{{ elem.name }}</a></h3>
+                <p>{{ elem.description }}</p>
+                <span>{% trans 'item_status' %}:
+                    {% if elem.status == "a" %}
+                        {% trans "perfect_st" %}
+                    {% elif elem.status == "b" %}
+                        {% trans "used_st" %}
+                    {% endif %}
+                </span>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock body %}
+{% block script %}{% endblock script %}
