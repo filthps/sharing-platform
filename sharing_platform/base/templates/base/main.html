@@ -1,10 +1,19 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     {% block head %}{% endblock head %}
 </head>
 <body>
+<ul id="menu">
+    <li><a href="{% url 'admin' %}">admin</a></li>
+    <li><a href="{% url 'all-ad' %}">{% trans "catalog-all" %}</a></li>
+    <li><a href="{% url '' %}">{% trans "my-ad" %}</a></li>
+
+</ul>
+<div id="main">
     {% block body %}{% endblock body %}
+</div>
     {% block script %}{% endblock script %}
 </body>
 </html>

@@ -1,0 +1,9 @@
+{% extends "base/main.html" %}
+{% load rest_framework %}
+{% block body %}
+<form action="" method="post">
+    {% csrf_token %}
+    {% render_form form %}
+    <input type="submit" value="Save" />
+</form>
+{% endblock body%}

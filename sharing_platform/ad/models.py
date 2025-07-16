@@ -1,3 +1,4 @@
+import re
 import uuid
 from django.db import models
 from django.utils.translation import gettext
@@ -29,6 +30,11 @@ def exchange_item_validator(value):
         raise ValidationError
 
 
+def uuid_validator(val):
+    if not re.match(re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"), val):
+        raise ValidationError
+
+
 class ArticleCategory(models.Model):
     """ Категория предмета """
     name = models.CharField(max_length=50, blank=False)
@@ -37,7 +43,7 @@ class ArticleCategory(models.Model):
 
 class AdItem(models.Model):
     """ Предмет, участвующий в обмене """
-    id = models.CharField(max_length=50, default=uuid.uuid4(), primary_key=True)
+    id = models.CharField(max_length=50, default=uuid.uuid4(), primary_key=True, validators=(uuid_validator,))
     name = models.CharField(blank=False, max_length=30, default="")
     description = models.CharField(max_length=150, blank=True, default="")
     image = ...
@@ -48,7 +54,7 @@ class AdItem(models.Model):
 
 class ExchangeProposal(models.Model):
     """ Предложение бартерного обмена """
-    id = models.CharField(max_length=50, default=uuid.uuid4(), primary_key=True)
+    id = models.CharField(max_length=50, default=uuid.uuid4(), primary_key=True, validators=(uuid_validator,))
     status = models.CharField(max_length=1, choices=EXCHANGE_PROPOSAL_STATUS, default="p", blank=False, validators=(exchange_item_validator,))
     sender_ad = models.ForeignKey(AdItem, on_delete=models.CASCADE, null=False, related_name="AdItem.id+")
     receiver_ad = models.ForeignKey(AdItem, on_delete=models.CASCADE, null=False, related_name="AdItem.id+")
@@ -57,7 +63,7 @@ class ExchangeProposal(models.Model):
     def clean(self):
         if self.sender_ad._id == self.receiver_ad._id:
             raise ValidationError(gettext("exchange_proposal_himself_error"))
-        if self.__class__.filter(id=self.id).exist():
+        if self.__class__.objects.filter(id=self.id).exist():
             if self.status == "s" or self.status == "r":
                 raise ValidationError("current_item_isnt_editable")  # Объявление, по которому состоялся обмен, или оно было отклонено, не подлежит редактированию.
         return super().clean()
