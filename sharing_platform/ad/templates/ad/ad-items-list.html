@@ -1,22 +1,61 @@
+{# Страница списка отправки моих предложений чужим предметам. Или отмены моих заявок #}
 {% extends "base/main.html" %}
 {% load i18n %}
 {% load static %}
-{% block head %}{% endblock head %}
+{% block head %}
+    <link rel="stylesheet" href="{% static 'ad/css/ad_list.css' %}">
+{% endblock head %}
 {% block body %}
+    {% if target_ad_id %}
+      <div class="back-to-item">
+            <h2><a href="{% url 'show-ad' target_ad_id %}">{% trans 'back_to_offer' %}</a></h2>
+        </div>
+    {% endif %}
     <ul class="items_row">
-        {% for elem in form.results %}
+        {% if not items.results %}
+            <li class="empty-list">
+                <h1>{% trans "empty_at_now" %}</h1>
+            </li>
+        {% endif %}
+        {% for elem in items.results %}
             <li value="{{ elem.id }}">
                 <h3><a href="{% url 'show-ad' elem.id  %}">{{ elem.name }}</a></h3>
-                <p>{{ elem.description }}</p>
+                {% if elem.image %}
+                    <img src="{{ elem.list_thumb.url }}">
+                {% else %}
+                    <img src="{% static 'ad/images/no_preview.png' %}" class="no-image">
+                {% endif %}
                 <span>{% trans 'item_status' %}:
                     {% if elem.status == "a" %}
                         {% trans "perfect_st" %}
                     {% elif elem.status == "b" %}
                         {% trans "used_st" %}
+                    {% else %}
+                        {% trans "item_status_undef" %}
                     {% endif %}
                 </span>
+                {% if show_form %}
+                    <div class="form-zone">
+                        {% if is_has_my_request %}
+                            {% include "ad/cancel-offer.html" with id_=elem.id %}
+                        {% else %}
+                            {% include "ad/create-offer.html" with my_item=target_ad_id other_item=elem.id %}
+                        {% endif %}
+                    </div>
+                {% endif %}
             </li>
         {% endfor %}
     </ul>
+    <noscript>
+        <div id="nav">
+            <span><a href="{{ items.previous }}">Prev</a></span>
+            <span><a href="{{ items.next }}">Next</a></span>
+        </div>
+        </noscript>
 {% endblock body %}
-{% block script %}{% endblock script %}
+{% block script %}
+    <script>
+        get_current_page = () => {return {{ current_page_num }};};
+    </script>
+    <script src="{% static 'ad/js/list-loader.js' %}"></script>
+{% endblock script %}

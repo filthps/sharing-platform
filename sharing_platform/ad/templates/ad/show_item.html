@@ -1,43 +1,55 @@
 {% extends "base/main.html" %}
 {% load i18n %}
 {% load static %}
-{% block head %}{% endblock head %}
+{% block head %}
+    <link rel="stylesheet" href="{% static 'ad/css/item-details.css' %}">
+{% endblock head %}
 {% block body %}
     <div class="item-preview">
         <div class="l">
             <h2>{{ ad.name }}</h2>
-            <p>{{ ad.description }}</p>
+            <span>{% trans 'item_status' %}:
+                    {% if ad.status == "a" %}
+                        {% trans "perfect_st" %}
+                    {% elif ad.status == "b" %}
+                        {% trans "used_st" %}
+                    {% else %}
+                        {% trans "item_status_undef" %}
+                    {% endif %}
+                </span>
+            {% if ad.description %}<p class="desc-zone">{{ ad.description }}</p>{% endif %}
+                <div class="ex-requests">
+                    {% if input_ex %}
+                        <label for="input_items">{% trans "see_input_ex" %}:</label>
+                        <div id="input_items">
+
+                        </div>
+                    {% endif %}
+                    {% if output_ex %}
+                        <label for="output_items">{% trans "see_output_ex" %}:</label>
+                        <div id="output_items">
+
+                        </div>
+                    {% endif %}
+                </div>
         </div>
         <div class="r">
-            <!--  image -->
-        </div>
-        <div class="exchange-status">
-        {% if has_input_exchange %}
-            {% if ad.add_by.id == request.user.id %}
-                <div class="exchange-items-loadzone">  {# xhr get - mousein #}
-                    <h3>{% trans "has_new_ex_items" %}</h3>  {# У вас имеются заявки! Загрузить заявки #}
-                    <ul></ul>
-                </div>
-            {% elif request.user.id == ad.receiver_ad.add_by.id %}
-                <div class="cur-item-has-ex"><p>{% trans "current_ed_has_ex" %}</p></div>  {# Данный предмет имеет заявки на обмен, спешите оставить заявку и вы #}
-                <div class="exchange-items-loadzone">  {# xhr get - mousein. Загрузить список СВОИХ предметов, которые можно предложить к обмену #}
-                    <noscript><h3>{% trans "redirect_to_choice_my_ad" %}</h3></noscript>  {# Перейти к выбору моих предметов для того, чтобы предолжить их взамен этому. #}
-                    <ul></ul>
-                </div>
-            {% endif %}
-        {% else %}
-            {% if ad.add_by.id == request.user.id %}
-                <div class="exchange-items-loadzone">  {# xhr get - mousein #}
-                    <h3>{% trans "has_not_new_ex_items_yet" %}</h3>  {# У вас пока нету заявок! #}
-                    <ul></ul>
-                </div>
+            {% if ad.image %}
+                <img src="{{ ad.preview_thumb.url }}">
             {% else %}
-                <div class="exchange-items-loadzone">  {# xhr get - mousein. Загрузить список СВОИХ предметов, которые можно предложить к обмену #}
-                    <noscript><h3>{% trans "redirect_to_choice_my_ad" %}</h3></noscript>  {# Перейти к выбору моих предметов для того, чтобы предолжить их взамен этому. #}
-                    <ul></ul>
-                </div>
+                <img src="{% static 'ad/images/no_preview.png' %}" class="no-image">
             {% endif %}
-        {% endif %}
+            <div class="show-ex-requests">
+                {% if not ad.owner.id == request.user.id %}
+                    <a href="{% url 'exchange-init-list' ad.id %}">{% trans "make-ax-page" %}</a>
+                {% endif %}
+                <a href="{% url 'offer-request-list' ad.id 'in' %}">{% trans "show-ex-input-page" %}</a>
+                {% if not ad.owner.id == request.user.id %}
+                    <a href="{% url 'offer-request-list' ad.id 'out' %}">{% trans "show-ex-output-page" %}</a>
+                {% else %}
+                    <a href="{% url 'offer-request-list' ad.id 'out' %}">{% trans "i-show-ex-output-page" %}</a>
+                {% endif %}
+            <div>
         </div>
     </div>
 {% endblock body %}

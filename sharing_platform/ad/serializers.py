@@ -1,7 +1,9 @@
 import uuid
+import typing
+from django.db.transaction import atomic
 from django.utils.translation import gettext
 from rest_framework import serializers
-from .models import AdItem, ExchangeProposal, uuid_validator, exchange_item_validator
+from .models import AdItem, ExchangeProposal
 
 
 def check_exchange_item_status(value):
@@ -12,13 +14,13 @@ def check_exchange_item_status(value):
 class AdItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdItem
-        fields = "__all__"
+        exclude = ("exchange",)
 
     def __init__(self, *a, request_user=None, **k):
         self.request_user = request_user
         super().__init__(*a, **k)
     id = serializers.CharField(read_only=True)
-    name = serializers.CharField(max_length=30, required=True)
+    name = serializers.CharField(max_length=30, required=True, label=gettext("ad_item_name"))
     owner = serializers.HiddenField(default=None)
 
     def create(self, validated_data):
@@ -29,30 +31,45 @@ class AdItemSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class ExchangeInitListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdItem
+        fields = "__all__"
+    is_has_my_request = serializers.BooleanField(read_only=True)
+
+
 class InitialExchangeProposalSerializer(serializers.ModelSerializer):
     """ Сериализатор инициализирущий предложение обмена. """
     class Meta:
         model = ExchangeProposal
-        fields = "__all__"
-        exclude = ("id", "status", "created_at")
+        exclude = ("created_at",)
 
-    def __init__(self, *a, request_user=None, **k):
+    def __init__(self, *a, request_user=None, sender=None, receiver=None, **k):
         self.request_user = request_user
+        self._sender: typing.Optional[AdItem] = sender
+        self._receiver: typing.Optional[AdItem] = receiver
         super().__init__(*a, **k)
-    id = serializers.HiddenField(default=uuid.uuid4())
-    sender_ad = serializers.HiddenField(default=None)
 
-    def validate(self, attrs):
+    def validate(self, data):
         user = getattr(self, "request_user", None)
         if user is None:
             raise ValueError("Атрибут экземпляра 'request_user' необходимо передать для валидации")
-        if not attrs["sender_ad."].__owner_id == user.id:
+        if not self._sender.owner.id == user.id:
             raise serializers.ValidationError(gettext("value_column_sender_ad_taken_current_user"))  # В качестве значения столбца sender_ad принимается предмет ПРЕДЛАГАЮЩЕГО пользователя (текущий request.user)
-        if attrs["receiver_ad"].__owner_id == user.id:
+        if self._receiver.owner.id == user.id:
             raise serializers.ValidationError(gettext("value_column_receiver_ad_cnt_be_self_user"))  # В качестве значения receiver_ad должен выступать потенциальный получатель предложения
+        return data
 
     def update(self, instance, validated_data):
         raise serializers.ValidationError("Данный сериализатор не должен изменять данные.")
+
+    def create(self, validated_data):
+        ad_items = [self._sender, self._receiver]
+        with atomic():
+            new_exchange = ExchangeProposal(**validated_data)
+            [ad_item.exchange.add(new_exchange) for ad_item in ad_items]
+            new_exchange.save()
+        return new_exchange
 
 
 class ChangeStatusExchangeProposalSerializer(serializers.ModelSerializer):
@@ -61,11 +78,20 @@ class ChangeStatusExchangeProposalSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExchangeProposal
         fields = ("status",)
-    status = serializers.CharField(required=True, max_length=1, validators=(check_exchange_item_status,))
 
     def create(self, validated_data):
         raise serializers.ValidationError("Данный сериализатор не должен создавать экземпляр записи в таблице ExchangeProposal ")
 
-    def update(self, instance, validated_data):
-        if instance.sender_ad.id == validated_data.receiver_ad.id:
-            raise serializers.ValidationError(gettext("exchange_proposal_himself_error"))
+
+class OfferListSerializer(serializers.ModelSerializer):
+    """ Сериализатор для вывода сдвоенных предметов в рамках их взаимоотношений обмена """
+    class Meta:
+        model = ExchangeProposal
+        fields = "__all__"
+    sender = AdItemSerializer(read_only=True)
+    receiver = AdItemSerializer(read_only=True)
+    receiver_is_request_user = serializers.BooleanField(read_only=True, default=False)
+    sender_is_request_user = serializers.BooleanField(read_only=True, default=False)
+    is_has_my_request = serializers.BooleanField(read_only=True, default=False)
+    username_sender = serializers.CharField(read_only=True, default="")
+    username_receiver = serializers.CharField(read_only=True, default="")

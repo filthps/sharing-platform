@@ -2,24 +2,27 @@ import re
 import json
 from typing import Optional
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.http import HttpResponseRedirect
 from django.utils.translation import gettext
 from django.urls import reverse
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Subquery, OuterRef
 from django.views.generic.base import TemplateView
 from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer, HTMLFormRenderer, BrowsableAPIRenderer
-from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView
+from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveDestroyAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.status import HTTP_404_NOT_FOUND, HTTP_200_OK, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_202_ACCEPTED, \
-    HTTP_400_BAD_REQUEST, HTTP_201_CREATED
+    HTTP_400_BAD_REQUEST, HTTP_201_CREATED, HTTP_403_FORBIDDEN, HTTP_204_NO_CONTENT
 from rest_framework.exceptions import PermissionDenied
 from .models import AdItem, ExchangeProposal
-from .serializers import AdItemSerializer, ChangeStatusExchangeProposalSerializer, InitialExchangeProposalSerializer
+from .serializers import AdItemSerializer, ChangeStatusExchangeProposalSerializer, InitialExchangeProposalSerializer, \
+    OfferListSerializer, ExchangeInitListSerializer
 
 
 class RequestTools:
@@ -27,6 +30,8 @@ class RequestTools:
     def _is_ajax_request(request: Request):
         if not isinstance(request, Request):
             raise TypeError
+        if request.query_params.get("format", None) == "json":
+            return True
         i = request.META.get("X-Requested_With", None)
         if i is None:
             return False
@@ -35,19 +40,19 @@ class RequestTools:
         return False
 
 
-class ShowAdItem(APIView):
+class ShowAdItem(APIView, RequestTools):
     """ Страница показа предмета. """
     renderer_classes = (JSONRenderer, TemplateHTMLRenderer)
 
     def get(self, request, id_):
-        ad_entry = AdItem.objects.filter(id=id_)
-        input_exchange_items = ExchangeProposal.objects.filter(receiver_ad_id=id_, status="p")
-        output_exchange_items = ExchangeProposal.objects.exclude(receiver_ad_id=id_, status="p")
-        if not ad_entry.count():
-            return Response(status=HTTP_404_NOT_FOUND)
-        is_mine_ad_item = True if ad_entry.first().owner == request.user.id else False
-        return Response(data={"ad": ad_entry.first(), "input_ex": input_exchange_items,
-                              "output_ex": output_exchange_items, "is_mine_ad_item": is_mine_ad_item},
+        ad_item = AdItem.objects.filter(id=id_)
+        if not ad_item.count():
+            if self._is_ajax_request(request):
+                return Response(status=HTTP_404_NOT_FOUND)
+            if request.user.is_authenticated:
+                return HttpResponseRedirect(redirect_to=reverse('all-ad-my'))
+            return HttpResponseRedirect(redirect_to="all-ad")
+        return Response(data={"ad": ad_item.first()},
                         template_name="ad/show_item.html",
                         status=HTTP_200_OK)
 
@@ -68,24 +73,22 @@ class AdCatalog(ListAPIView, APIView, RequestTools):
         if self.request.get_full_path().endswith("/all-my-items/"):
             return AdItem.objects.filter(owner=self.request.user)
         if self.request.get_full_path().endswith("/my/"):  # Получение списка предметов (мои предложения, адресованные другим предметам)
-            return AdItem.objects.filter(status="p",
-                                         id__in=ExchangeProposal.objects.prefetch_related("sender_ad").filter(
-                                             sender_ad__owner_id=self.request.user.id).values("sender_ad__id")
+            return AdItem.objects.filter(id__in=ExchangeProposal.objects.filter(status="p").prefetch_related("sender").filter(
+                                             sender__owner_id=self.request.user.id).values("sender__id")
                                          )
         if self.request.get_full_path().endswith("/tome/"):  # Получение списка предметов (предложения для меня)
-            return AdItem.objects.filter(status="p",
-                                         id__in=ExchangeProposal.objects.select_related("receiver_ad").filter(
-                                            receiver_ad__owner_id=self.request.user.id).values("receiver_ad__id")
-                                        )
-        if self.request.get_full_path().endswith("/request/"):  # Список предметов, которым можно предложить обмен (я не жду одобрения)
-            big_query = ExchangeProposal.objects.prefetch_related("sender_ad").prefetch_related("receiver_ad").exclude(
-                sender_ad__owner_id=self.request.user.id,
-                receiver_ad__owner_id=self.request.user.id)
+            return AdItem.objects.filter(id__in=ExchangeProposal.objects.filter(status="p").select_related("receiver").filter(
+                receiver__owner_id=self.request.user.id).values("receiver__id")
+                                         )
+        if self.request.get_full_path().endswith("/request/"):  # Список предметов, которым можно предложить обмен (я не жду одобрения) и не отправлял заявок
+            big_query = ExchangeProposal.objects.filter(status="p").prefetch_related("sender").prefetch_related("receiver").exclude(
+                sender__owner_id=self.request.user.id,
+                receiver__owner_id=self.request.user.id)
             return AdItem.objects.exclude(
                 owner=self.request.user).exclude(
-                id__in=big_query.values("sender_ad__id")).exclude(
-                id__in=big_query.values("receiver_ad__id")
-            ).filter(status="p",)
+                id__in=big_query.values("sender__id")).exclude(
+                id__in=big_query.values("receiver__id")
+            )
         return AdItem.objects.all()
 
     def filter_queryset(self, queryset):
@@ -106,14 +109,10 @@ class AdCatalog(ListAPIView, APIView, RequestTools):
                 return Response(status=HTTP_422_UNPROCESSABLE_ENTITY)
             return HttpResponseRedirect(status=HTTP_422_UNPROCESSABLE_ENTITY, redirect_to=request.get_full_path())
         resp_instance: Response = self.list(request, *args, **kwargs)
-        accept_forms = True if self.request.get_full_path().endswith("/tome/") else False  # Включить в шаблоне кнопки accept/reject
-        send_ex_request_form = True if self.request.get_full_path().endswith("/request/") else False  # включить в шаблоне кнопку "запросить обмен"
         if self._is_ajax_request(request):
             return Response(data=json.dumps(resp_instance.data), headers=resp_instance.headers, status=HTTP_200_OK)
         return Response(template_name="ad/ad-items-list.html", status=HTTP_200_OK, headers=resp_instance.headers,
-                        data={"items": resp_instance.data, "accept_mini_form": accept_forms,
-                              "send_ex_request_form": send_ex_request_form,
-                              "current_page_num": request.GET.get("page", 1)})
+                        data={"items": resp_instance.data, "current_page_num": request.GET.get("page", 1)})
 
     @staticmethod
     def __is_valid_params(request_data: dict):
@@ -144,12 +143,13 @@ class AdCatalog(ListAPIView, APIView, RequestTools):
         return True
 
 
-class CreateAd(TemplateView, CreateAPIView, RequestTools):
+class CreateAd(CreateAPIView, TemplateView, RequestTools):
     """ Добавить в каталог товар предмет для обмена. """
     queryset = AdItem
     serializer_class = AdItemSerializer
-    renderer_classes = (TemplateHTMLRenderer, BrowsableAPIRenderer, JSONRenderer,)
+    renderer_classes = (JSONRenderer, TemplateHTMLRenderer, HTMLFormRenderer,)
     parser_classes = (MultiPartParser, FormParser,)
+    permission_classes = (IsAuthenticated,)
     template_name = "ad/add_ad.html"
     extra_context = {"serializer": AdItemSerializer}
 
@@ -158,75 +158,126 @@ class CreateAd(TemplateView, CreateAPIView, RequestTools):
         return serializer(*args, request_user=self.request.user, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        if self._is_ajax_request(request):
-            return Response(status=HTTP_201_CREATED, data=response.data, headers=response.headers)
-        messages.add_message(request, messages.INFO, gettext("ad_added_successful"))
-        return HttpResponseRedirect(redirect_to=reverse("show-ad", args=[response.data["id"]]))  # 302 redirect
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=False)
+        if not serializer.is_valid():
+            return Response(data={"serializer": serializer}, status=HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(data={"serializer": serializer}, status=HTTP_201_CREATED, headers=headers)
 
 
 class OfferExchange(CreateAPIView, RequestTools):
     """ Инициировать предложение обмена. Предложить товар на обмен. """
     serializer_class = InitialExchangeProposalSerializer
     queryset = ExchangeProposal
-    renderer_classes = (JSONRenderer, HTMLFormRenderer,)
-    parser_classes = (JSONParser, FormParser,)
+    renderer_classes = (JSONRenderer,)
+    parser_classes = (JSONParser,)
+    permission_classes = (IsAuthenticated,)
+
+    def __init__(self, *a, **kw):
+        self.sender = None
+        self.receiver = None
+        super().__init__(*a, **kw)
 
     def get_serializer(self, *args, **kwargs):
         serializer = self.get_serializer_class()
-        return serializer(*args, request_user=self.request.user, **kwargs)
+        return serializer(*args, request_user=self.request.user,
+                          sender=self.sender.first(), receiver=self.receiver.first(), **kwargs)
 
     def create(self, request, *args, **kwargs):
-        sender_ad_item, receiver_ad_item = \
-            AdItem.objects.filter(id=request.query_params["my_ad"]), \
-            AdItem.objects.filter(id=request.query_params["other_ad"])
-        if not sender_ad_item.count() or not receiver_ad_item.count():
+        if not self.sender.count() or not self.receiver.count():
             if self._is_ajax_request(request):
                 return Response(status=HTTP_404_NOT_FOUND)
-            messages.add_message(request, messages.INFO, gettext("ad_not_fount"))
+            messages.add_message(request, messages.ERROR, gettext("ad_not_fount"))
             return HttpResponseRedirect(redirect_to=reverse("all-ad"))
-        serializer = self.get_serializer(data={"sender_ad": sender_ad_item.first(), "receiver_ad": receiver_ad_item})
+        if ExchangeProposal.objects.filter(sender_id=self.sender.first().id, receiver_id=self.receiver.first().id,
+                                           sender__owner_id=request.user.id, status="p").count():
+            if self._is_ajax_request(request):
+                return Response(status=HTTP_422_UNPROCESSABLE_ENTITY)
+            messages.add_message(request, messages.ERROR, gettext("ex_already_exist"))
+            return HttpResponseRedirect(redirect_to=reverse("show-ad", kwargs={"id_": kwargs["my_ad"]}))
+        serializer = self.get_serializer(data={"sender": self.sender.first().id,
+                                               "receiver": self.receiver.first().id,
+                                               "status": "p"})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         if self._is_ajax_request(request):
-            return Response(status=HTTP_201_CREATED, headers=headers, data=json.dumps(serializer.data))
+            return Response(status=HTTP_201_CREATED, headers=headers, data=serializer.data)
         messages.add_message(request, messages.INFO, gettext("ex_offer_send_successful"))
-        return HttpResponseRedirect(redirect_to=reverse("show-ad", kwargs={"id_": self.request.query_params["id_"]}),
-                                    status=HTTP_201_CREATED, headers=headers)
+        return HttpResponseRedirect(redirect_to=reverse("show-ad", kwargs={"id_": kwargs["my_ad"]}), headers=headers)
+
+    def post(self, request, *args, **kwargs):
+        self.sender, self.receiver = AdItem.objects.filter(id=kwargs["my_ad"]),\
+                                     AdItem.objects.filter(id=kwargs["other_ad"])
+        return super().post(request, *args, **kwargs)
 
 
-class ExchangeAdItem(UpdateAPIView, RequestTools):
+class OfferCancel(RetrieveUpdateDestroyAPIView, RequestTools):
+    """ Отменить свой запрос на обмен, пока его не приняли или не отклонили. """
+    queryset = ExchangeProposal.objects.filter(status="p")
+    permission_classes = (IsAuthenticated,)
+
+    def __init__(self, *a, **k):
+        self.id = None
+        super().__init__(*a, **k)
+
+    def get_object(self):
+        return self.get_queryset().filter(id=self.id)
+
+    def check_object_permissions(self, request, obj: ExchangeProposal):
+        if not obj.sender.id == request.user.id:
+            raise PermissionDenied
+
+    def delete(self, request, *args, **kwargs):
+        self.id = kwargs["id_"]
+        resp = super().delete(request, *args, **kwargs)
+        if self._is_ajax_request(request):
+            return Response(status=resp.status_code, headers=resp.headers)
+        if resp.status_code == HTTP_403_FORBIDDEN:
+            messages.add_message(request, messages.SUCCESS, gettext("offer_deleted"))
+        return HttpResponseRedirect(redirect_to=reverse("all-ad"))
+
+
+class ExchangeAdItem(RetrieveUpdateDestroyAPIView, RequestTools):
     """ Отклонить или принять предложение обмена. """
     queryset = ExchangeProposal.objects.filter(status="p")
     serializer_class = ChangeStatusExchangeProposalSerializer
+    permission_classes = (IsAuthenticated,)
 
     def __init__(self, *a, **k):
         self.current_exchange_item: Optional[ExchangeProposal] = None  # Экземпляр текущей "сделки"
         super().__init__(*a, **k)
 
-    def filter_queryset(self, queryset):
-        self.current_exchange_item = queryset.filter(id=self.request.query_params["id_"])
-        return self.current_exchange_item
+    def filter_queryset(self, queryset, exchangeProposal_pk):
+        cur = current_exchange_item = queryset.filter(id=exchangeProposal_pk)
+        self.current_exchange_item = cur.first()
+        return cur
 
     def update(self, request: Request, *args, **kwargs):
-        self.__check_permissions(request, kwargs["id_"])
-        serializer = self.get_serializer(*args, **kwargs)
-        instance = self.filter_queryset(self.get_queryset())
+        if not self.__check_permissions(request, kwargs["id_"]):
+            if self._is_ajax_request(request):
+                return Response(status=HTTP_422_UNPROCESSABLE_ENTITY)
+            return HttpResponseRedirect(redirect_to=reverse("all-ad-my"))
+        instance = self.filter_queryset(self.get_queryset(), kwargs["id_"])
         if not instance.count():
             if self._is_ajax_request(request):
                 return Response(status=HTTP_400_BAD_REQUEST)
-            return HttpResponseRedirect(redirect_to=reverse("all-ad-my"), status=HTTP_400_BAD_REQUEST)
-        serializer = serializer(instance, data={"status": request.query_params["type_"]},
-                                partial=True)
+            return HttpResponseRedirect(redirect_to=reverse("all-ad-my"))
+        serializer = self.get_serializer(instance.first(),
+                                         data={"status": {"accept": "s", "reject": "r"}[kwargs["type_"]]},
+                                         partial=True)
+        serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             serializer.save()
-            self.__change_ad_item_owner(self.current_exchange_item.sender_ad, self.current_exchange_item.receiver_ad)
-            self.current_exchange_item.sender_ad.save()
-            self.current_exchange_item.receiver_ad.save()
+            if serializer.data["status"] == "s":
+                self.__change_ad_item_owner(self.current_exchange_item.sender, self.current_exchange_item.receiver)
+                self.current_exchange_item.sender.save()
+                self.current_exchange_item.receiver.save()
         if self._is_ajax_request(request):
             return Response(status=HTTP_202_ACCEPTED)
-        return HttpResponseRedirect(redirect_to=reverse("show-ad", kwargs={"id_": self.request.query_params["id_"]}),
+        return HttpResponseRedirect(redirect_to=reverse("show-ad", kwargs={"id_": kwargs["id_"]}),
                                     status=HTTP_202_ACCEPTED)
 
     @staticmethod
@@ -238,43 +289,68 @@ class ExchangeAdItem(UpdateAPIView, RequestTools):
     def __check_permissions(request, pk):
         if not request.user.is_authenticated:
             raise PermissionDenied
-        print(request.query_params)
         owner = ExchangeProposal.objects.filter(
-            id=pk, status="p").select_related("receiver_ad")
+            id=pk, status="p").select_related("receiver").values("receiver__owner_id")
         if not owner.count():
-            return
-        if not request.user.id == owner.first().receiver_ad_id:
+            return False
+        if not request.user.id == owner.first()["receiver__owner_id"]:
             raise PermissionDenied("only_receiver_can_accept_or_reject")
+        return True
 
 
-class ExchangeCatalog(ListAPIView, APIView, RequestTools):
-    """ Каталог предметов, представляющий связь(бизнес процесс обмена) этих предметов с переданным в url. 
-    Неважно кто инициатор. """
-    serializer_class = AdItemSerializer
+class ExchangeAdList(ListAPIView, APIView, RequestTools):
+    """  Представление списка рассмотрения предложений,
+    или отправки предложений обменять текущий предмет на один из списка...
+    Предметы, которые я могу предложить взамен на интересующий. Или ответить на входящую заявку. """
+    serializer_class = OfferListSerializer
     pagination_class = CatalogPagination
     renderer_classes = (JSONRenderer, TemplateHTMLRenderer,)
+    permission_classes = (IsAuthenticated,)
 
     def __init__(self, *args, **kwargs):
-        self.current_ad_id = None
+        self.current_ad_id = None  # Интересующий предмет, который я предлагаю обменять или готов принять
+        self.type = None  # Предлагаю или принимаю предмет, или являюсь посторонним зрителем
         super().__init__(*args, **kwargs)
 
     def get_queryset(self):
-        return AdItem.objects.filter(
-            id__in=ExchangeProposal.objects.prefetch_related("sender_ad").filter(
-                sender_ad_id=self.current_ad_id).values("sender_ad_id")).filter(id__in=ExchangeProposal.objects.prefetch_related("receiver_ad").filter(
-                receiver_ad_id=self.current_ad_id).values("receiver_ad_id"))
+        return ExchangeProposal.objects.prefetch_related("sender", "receiver")
 
     def filter_queryset(self, queryset):
-        if self.request.get_full_path().endswith("/pending/"):  # Показ желающих на обмен ЭТОГО предмета на свой (в настоящем времени status всё ещё в ожидании)
-            return queryset.filter(status="p")
-        if self.request.get_full_path().endswith("/rejected/"):  # История отклонённых обменов данного предмета
-            return queryset.filter(status="r")
-        if self.request.get_full_path().endswith("/accepted/"):  # История успешных обменов данного предмета
-            return queryset.filter(status="s")
-        return queryset
+        """ Взяли все АКТИВНЫЕ обмены с участием нашего предмета. Мы знаем, что инициатор обмена sender,
+            если его sender.owner==request.user.id,
+        то я был инициатором и теперь нужно показать форму отмены запроса,
+            если receiver.owner==request.user.id,
+        то моему предмету предложили обмен и нужно показать форму [принять/отказаться],
+            если ни sender.owner!=request.user.id, ни receiver.owner==request.user.id,
+        то можно показать форму предложения обмена
+          """
+        query = queryset.filter(status="p")
+        if self.type == "in":  # Входящие заявки (согласиться/отказаться) менять этот предмет
+            return query.filter(receiver_id=self.current_ad_id).annotate(
+                receiver_is_request_user=Q(receiver__owner_id=self.request.user.id),
+                username_sender=Subquery(User.objects.filter(id=OuterRef("sender_id__owner_id")).values_list("username")),
+                username_receiver=Subquery(User.objects.filter(id=OuterRef("receiver_id__owner_id")).values_list("username"))
+            )
+        if self.type == "out":  # Исходящие заявки (Предложить обмен/отказаться от своего предложения)
+            return query.filter(sender_id=self.current_ad_id).annotate(
+                sender_is_request_user=Q(sender__owner_id=self.request.user.id),
+                username_sender=Subquery(User.objects.filter(id=OuterRef("sender_id__owner_id")).values_list("username")),
+                username_receiver=Subquery(User.objects.filter(id=OuterRef("receiver_id__owner_id")).values_list("username"))
+            )
+        if self.type == "all":  # Посторонний наблюдатель
+            return query.filter(
+                Q(receiver_id=self.current_ad_id) | Q(sender_id=self.current_ad_id)
+            ).annotate(
+                receiver_is_request_user=Q(receiver__owner_id=self.request.user.id),
+                sender_is_request_user=Q(sender__owner_id=self.request.user.id),
+                username_sender=Subquery(User.objects.filter(id=OuterRef("sender_id__owner_id")).values_list("username")),
+                username_receiver=Subquery(User.objects.filter(id=OuterRef("receiver_id__owner_id")).values_list("username"))
+            )
+        return query
 
-    def get(self, request, id_, *args, **kwargs):
+    def get(self, request, id_, type_, *args, **kwargs):
         self.current_ad_id = id_
+        self.type = type_
         if not AdItem.objects.filter(id=id_).count():
             if self._is_ajax_request(request):
                 return Response(status=HTTP_404_NOT_FOUND)
@@ -283,28 +359,30 @@ class ExchangeCatalog(ListAPIView, APIView, RequestTools):
         resp_instance: Response = self.list(request, *args, **kwargs)
         if self._is_ajax_request(request):
             return Response(data=json.dumps(resp_instance.data), headers=resp_instance.headers, status=HTTP_200_OK)
-        return Response(template_name="ad/ad-items-list.html", status=HTTP_200_OK, headers=resp_instance.headers,
-                        data={"items": resp_instance.data})
+        return Response(template_name="ad/make-offer-list.html", status=HTTP_200_OK, headers=resp_instance.headers,
+                        data={"items": resp_instance.data, "target_ad_id": self.current_ad_id, "type": self.type})
 
 
-class ShowAdItemReceivers(ListAPIView, APIView, RequestTools):
-    """ Список предложений по предмету (который фигурирует в URL). Инициатор некто другой. """
-    serializer_class = AdItemSerializer
+class ExchangeInitList(ListAPIView, APIView, RequestTools):
+    """ Представление списка вещей, которым можно предложить обмен или отказаться от своего предложения """
+    serializer_class = ExchangeInitListSerializer
     pagination_class = CatalogPagination
     renderer_classes = (JSONRenderer, TemplateHTMLRenderer,)
-    
+    permission_classes = (IsAuthenticated,)
+    queryset = AdItem
+
     def __init__(self, *args, **kwargs):
-        self.current_ad_id = None
+        self.my_ad_id = None  # Интересующий предмет, который я предлагаю обменять или готов принять
+        self.type = None  # Предлагаю или принимаю предмет, или являюсь посторонним зрителем
         super().__init__(*args, **kwargs)
 
-    def get_queryset(self):
-        return AdItem.objects.filter(status="p", id__in=ExchangeProposal.objects.prefetch_related(
-            "receiver_ad").prefetch_related(
-            "sender_id").filter(
-            receiver_ad_id=self.current_ad_id).values("sender_ad_id"))
-    
+    def filter_queryset(self, queryset):
+        return AdItem.objects.filter(owner_id=self.request.user.id).annotate(
+            is_has_my_request=Q(exchange__sender_id=self.request.user.id) & Q(exchange__status="p"),  # Предлагал ни я этот предмет
+        )
+
     def get(self, request, id_, *args, **kwargs):
-        self.current_ad_id = id_
+        self.my_ad_id = id_
         if not AdItem.objects.filter(id=id_).count():
             if self._is_ajax_request(request):
                 return Response(status=HTTP_404_NOT_FOUND)
@@ -314,5 +392,48 @@ class ShowAdItemReceivers(ListAPIView, APIView, RequestTools):
         if self._is_ajax_request(request):
             return Response(data=json.dumps(resp_instance.data), headers=resp_instance.headers, status=HTTP_200_OK)
         return Response(template_name="ad/ad-items-list.html", status=HTTP_200_OK, headers=resp_instance.headers,
-                        data={"items": resp_instance.data, "main_ad_item_id": self.current_ad_id,
-                              "accept_mini_form": True})
+                        data={"items": resp_instance.data, "target_ad_id": self.my_ad_id, "show_form": True})
+
+
+""" Дальше пойдут представления для получения сугубо JSON данных через browser api """
+
+
+class ItemProfileInputExchange(ListAPIView, RequestTools):
+    permission_classes = (IsAuthenticated,)
+    pagination_class = ...
+    parser_classes = (JSONParser,)
+    queryset = ExchangeProposal
+
+    def __init__(self, *args, **kwargs):
+        self.id = None
+        super().__init__(*args, **kwargs)
+
+    def filter_queryset(self, queryset):
+        return queryset.objects.filter(
+            receiver_id=self.id, status="p").select_related("sender")
+
+    def get(self, request, *args, **kwargs):
+        self.id = request.query_params.get
+        if self._is_ajax_request(request):
+            pass
+        return
+
+
+class ItemProfileOutputExchange(ListAPIView, RequestTools):
+    permission_classes = (IsAuthenticated,)
+    pagination_class = ...
+    queryset = ExchangeProposal
+
+    def __init__(self, *args, **kwargs):
+        self.id = None
+        super().__init__(*args, **kwargs)
+
+    def filter_queryset(self, queryset):
+        return queryset.objects.filter(
+            sender_id=self.id, status="p").select_related("receiver").values("id", "receiver")
+
+    def get(self, request, *args, **kwargs):
+        self.id = request.query_params.get
+        if self._is_ajax_request(request):
+            pass
+        return

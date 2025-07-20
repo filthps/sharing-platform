@@ -1,0 +1,236 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# 
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-20 22:40+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n"
+"%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: .\ad\models.py:12 .\ad\models.py:27
+msgid "select_state"
+msgstr "Выберите состояние предмета"
+
+#: .\ad\models.py:13
+msgid "new"
+msgstr "Новый"
+
+#: .\ad\models.py:14
+msgid "used"
+msgstr "Б/У"
+
+#: .\ad\models.py:19
+msgid "success"
+msgstr "Обмен состоялся"
+
+#: .\ad\models.py:20
+msgid "pending"
+msgstr "Ожидание одобрения"
+
+#: .\ad\models.py:21
+msgid "rejected"
+msgstr "Ваше предложение отклонено"
+
+#: .\ad\models.py:52 .\ad\serializers.py:22
+msgid "ad_item_name"
+msgstr "Название предмета"
+
+#: .\ad\models.py:53
+msgid "ad_item_description"
+msgstr "Описание предмета"
+
+#: .\ad\models.py:54
+msgid "ad_item_image"
+msgstr "Изображение"
+
+#: .\ad\models.py:67
+msgid "ad_item_category"
+msgstr "Категория"
+
+#: .\ad\models.py:68
+msgid "ad_item_owner"
+msgstr "Хозяин"
+
+#: .\ad\models.py:70
+msgid "ad_item_quality_status"
+msgstr "Состояние предмета"
+
+#: .\ad\models.py:81
+msgid "exchange_status"
+msgstr "Текущий статус обмена"
+
+#: .\ad\models.py:82
+msgid "sender"
+msgstr "Предлагающий"
+
+#: .\ad\models.py:83
+msgid "receiver"
+msgstr "Принимающий"
+
+#: .\ad\models.py:84
+msgid "created_at"
+msgstr "Создано"
+
+#: .\ad\models.py:88 .\ad\serializers.py:89
+msgid "exchange_proposal_himself_error"
+msgstr "Нельзя обменять предмет сам на себя"
+
+#: .\ad\models.py:90
+msgid "offer_exchange_yourself_error"
+msgstr "Нельзя произвести обмен самому с собой"
+
+#: .\ad\serializers.py:58
+msgid "value_column_sender_ad_taken_current_user"
+msgstr ""
+"В качестве значения столбца sender_ad принимается предмет ПРЕДЛАГАЮЩЕГО "
+"пользователя (текущий request.user)"
+
+#: .\ad\serializers.py:60
+msgid "value_column_receiver_ad_cnt_be_self_user"
+msgstr ""
+"В качестве значения receiver_ad должен выступать потенциальный получатель "
+"предложения"
+
+#: .\ad\templates\ad\ad-items-list.html:11
+#: .\ad\templates\ad\make-offer-list.html:18
+msgid "back_to_offer"
+msgstr "Назад к предмету"
+
+#: .\ad\templates\ad\ad-items-list.html:16
+#: .\ad\templates\ad\make-offer-list.html:23
+msgid "empty_at_now"
+msgstr "Пока что пусто :(("
+
+#: .\ad\templates\ad\ad-items-list.html:28
+#: .\ad\templates\ad\make-offer-list.html:47
+#: .\ad\templates\ad\make-offer-list.html:69
+#: .\ad\templates\ad\show_item.html:11
+msgid "item_status"
+msgstr "Состояние предмета"
+
+#: .\ad\templates\ad\ad-items-list.html:30
+#: .\ad\templates\ad\make-offer-list.html:49
+#: .\ad\templates\ad\make-offer-list.html:71
+#: .\ad\templates\ad\show_item.html:13
+msgid "perfect_st"
+msgstr "Новый"
+
+#: .\ad\templates\ad\ad-items-list.html:32
+#: .\ad\templates\ad\make-offer-list.html:51
+#: .\ad\templates\ad\make-offer-list.html:73
+#: .\ad\templates\ad\show_item.html:15
+msgid "used_st"
+msgstr "Б/У"
+
+#: .\ad\templates\ad\ad-items-list.html:34
+msgid "item_status_undef"
+msgstr "Не указано"
+
+#: .\ad\templates\ad\add_ad.html:13
+msgid "create_new_ad"
+msgstr "Добавить предмет"
+
+#: .\ad\templates\ad\cancel-offer.html:4
+msgid "remove_ex"
+msgstr "Я передумал"
+
+#: .\ad\templates\ad\create-offer.html:4
+msgid "create_offer"
+msgstr "Предложить взамен"
+
+#: .\ad\templates\ad\make-offer-list.html:12
+msgid "review_all"
+msgstr "Все обмены"
+
+#: .\ad\templates\ad\make-offer-list.html:14
+msgid "input_requests"
+msgstr "Предлагают вам"
+
+#: .\ad\templates\ad\make-offer-list.html:16
+msgid "output_requests"
+msgstr "Ваши запросы на обмен"
+
+#: .\ad\templates\ad\offer-form.html:4
+msgid "accept_ex"
+msgstr "Обменяться"
+
+#: .\ad\templates\ad\offer-form.html:5
+msgid "reject_ex"
+msgstr "Отказаться от предложения"
+
+#: .\ad\templates\ad\show_item.html:21
+msgid "see_input_ex"
+msgstr "Предложенные на обмен"
+
+#: .\ad\templates\ad\show_item.html:27
+msgid "see_output_ex"
+msgstr "Этот предмет предложен взамен"
+
+#: .\ad\templates\ad\show_item.html:42
+msgid "make-ax-page"
+msgstr "Хочу этот предмет!"
+
+#: .\ad\templates\ad\show_item.html:44
+msgid "show-ex-input-page"
+msgstr "Готовы предложить свои предметы за этот предмет..."
+
+#: .\ad\templates\ad\show_item.html:46
+msgid "show-ex-output-page"
+msgstr "Хозяин хочет поменять этот предмет на..."
+
+#: .\ad\templates\ad\show_item.html:48
+msgid "i-show-ex-output-page"
+msgstr "Ожидаю рассмотрения..."
+
+#: .\ad\views.py:187
+msgid "ad_not_fount"
+msgstr "Предмет не найден"
+
+#: .\ad\views.py:195
+msgid "ex_offer_send_successful"
+msgstr "Сделка состоялась"
+
+#: .\ad\views.py:222 .\ad\views.py:224
+msgid "offer_deleted"
+msgstr "Обмен отклонён"
+
+#: .\ad\views.py:335 .\ad\views.py:367
+msgid "does_not_exist"
+msgstr "Не найдено"
+
+#: .\base\templates\base\main.html:15
+msgid "catalog-all"
+msgstr "Все предметы"
+
+#: .\base\templates\base\main.html:16
+msgid "catalog-all-my-ad-items"
+msgstr "Все мои предметы"
+
+#: .\base\templates\base\main.html:17
+msgid "catalog-my"
+msgstr "Мои предложения"
+
+#: .\base\templates\base\main.html:18
+msgid "catalog-tome"
+msgstr "Предложения мне"
+
+#: .\base\templates\base\main.html:19
+msgid "catalog-can-request"
+msgstr "Готовы получить предложение"
+
+#: .\base\templates\base\main.html:20
+msgid "add-ad-item"
+msgstr "Добавить предмет"

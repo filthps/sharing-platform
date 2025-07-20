@@ -1,0 +1,5 @@
+{% load i18n %}
+<form method="post">
+    {% csrf_token %}
+    <input type="submit" formaction="{% url 'exchange-offer' my_item other_item %}" value="{% trans 'create_offer' %}">
+</form>

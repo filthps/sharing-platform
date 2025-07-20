@@ -1,0 +1,6 @@
+{% load i18n %}
+<form method="post">
+    {% csrf_token %}
+    <input type="submit" formaction="{% url 'exchange-response' 'accept' id_ %}" value="{% trans 'accept_ex' %}">
+    <input type="submit" formaction="{% url 'exchange-response' 'reject' id_ %}" value="{% trans 'reject_ex' %}">
+</form>

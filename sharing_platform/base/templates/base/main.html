@@ -1,20 +1,43 @@
 {% load i18n %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{% static 'base/css/main.css' %}">
     {% block head %}{% endblock head %}
 </head>
 <body>
+<div id="background"></div>
 <ul id="menu">
-    {#<li><a href="{% url 'admin' %}">admin</a></li>#}
-    <li><a href="{% url 'all-ad' %}">{% trans "catalog-all" %}</a></li>
-    <li><a href="{% url 'all-ad-my' %}">{% trans "catalog-my" %}</a></li>
-    <li><a href="{% url 'all-ad-tome' %}">{% trans "catalog-tome" %}</a></li>
-    <li><a href="{% url 'post-ad' %}">{% trans "add-ad-item" %}</a></li>
+    {% with request.resolver_match.url_name as url_name %}
+        {#<li><a href="{% url 'admin' %}">admin</a></li>#}
+        <li {% if url_name == 'all-ad' %}class="active"{% endif %}><a href="{% url 'all-ad' %}">{% trans "catalog-all" %}</a></li>
+        <li {% if url_name == 'all-ad-my-ad-items' %}class="active"{% endif %}><a href="{% url 'all-ad-my-ad-items' %}">{% trans "catalog-all-my-ad-items" %}</a></li>
+        <li {% if url_name == 'all-ad-my' %}class="active"{% endif %}><a href="{% url 'all-ad-my' %}">{% trans "catalog-my" %}</a></li>
+        <li {% if url_name == 'all-ad-tome' %}class="active"{% endif %}><a href="{% url 'all-ad-tome' %}">{% trans "catalog-tome" %}</a></li>
+        <li {% if url_name == 'all-ad-can_request' %}class="active"{% endif %}><a href="{% url 'all-ad-can_request' %}">{% trans "catalog-can-request" %}</a></li>
+        <li {% if url_name == 'post-ad' %}class="active"{% endif %}><a href="{% url 'post-ad' %}">{% trans "add-ad-item" %}</a></li>
+    {% endwith %}
 </ul>
+    {% if messages %}
+        <div class="messages-zone">
+            <ul class="messages">
+                {% for message in messages %}
+                    <li>{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
 <div id="main">
     {% block body %}{% endblock body %}
 </div>
-    {% block script %}{% endblock script %}
+    <script>
+         get_token = () => {
+            return "{{ csrf_token }}";
+         };
+    </script>
+<script src="{% static 'ad/js/forms.js' %}"></script>
+{% block script %}{% endblock script %}
 </body>
 </html>

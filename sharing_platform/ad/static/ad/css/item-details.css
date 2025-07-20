@@ -1,0 +1,24 @@
+.item-preview {min-height: 500px;}
+.item-preview > div {float: left;}
+.item-preview h2 {text-align: center;}
+.item-preview .l {width:70%}
+.item-preview .r {width: 30%}
+.item-preview .r > img {background: #ddd; border: 1px solid #999; margin: 20px; margin-left: -20px;}
+.item-preview .r .no-image {width: 350px; height: auto;}
+.no-image-mini {width:70px; height: auto;}
+.mini-item {float: left; max-height: 150px;}
+.desc-zone {padding: 10px;
+  width: auto;
+  display: inline;
+  margin-left: 15px;
+  background-color: #dfdfdf;
+  border: 1px solid #b7b7b7;
+  font-style: italic;
+  border-radius: 3px;
+  }
+.show-ex-requests {
+ display: grid;
+}
+.show-ex-requests a {
+color: #531100;
+}

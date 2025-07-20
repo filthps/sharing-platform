@@ -1,0 +1,100 @@
+{# Страница списка предложений. Страница со "сдвоенными" элементами слева инициатор обмена - справа второй предмет #}
+{% extends "base/main.html" %}
+{% load i18n %}
+{% load static %}
+{% block head %}
+    <link rel="stylesheet" href="{% static 'ad/css/ad_list.css' %}">
+{% endblock head %}
+{% block body %}
+{% if target_ad_id %}
+    <div class="back-to-item">
+        {% if type == "all" %}<!- Все обмены ->
+        {% trans "review_all" %}
+        {% elif type == "in" %} <!- Входящие предложения ->
+            {% trans "input_requests" %}
+        {% elif type == "out" %} <!- Исходящие предложения ->
+            {% trans "output_requests" %}
+        {% endif %}
+        <h2><a href="{% url 'show-ad' target_ad_id %}">{% trans 'back_to_offer' %}</a></h2>
+    </div>
+{% endif %}
+    <ul class="items_row">
+        {% if not items.results %}
+            <li class="empty-list">
+                <h1>{% trans "empty_at_now" %}</h1>
+            </li>
+        {% endif %}
+        {% for elem in items.results %}
+            {% if type == "all" %}
+                <li class="author"><h3>{{ elem.username_sender }} -->  {{ elem.username_receiver }}</h3></li>
+            {% elif type == "in" %}
+                <li class="author"><h3>{{ elem.username_sender }}</h3></li>
+            {% elif type == "out" %}
+                <li class="author"><h3>{{ elem.username_receiver }}</h3></li>
+            {% endif %}
+            {% if not elem.sender_is_request_user and not elem.receiver_is_request_user %}
+                <li class="double-item outside" value="{{ elem.sender.id }} {{ elem.receiver.id }}">
+            {% else %}
+                <li class="double-item" value="{{ elem.sender.id }} {{ elem.receiver.id }}">
+            {% endif %}
+                <div>
+                    <h3><a href="{% url 'show-ad' elem.sender.id  %}">{{ elem.sender.name }}</a></h3>
+                    {% if elem.sender_image %}
+                        <img src="{{ elem.sender_ad_image.list_thumb.url }}">
+                    {% else %}
+                        <img src="{% static 'ad/images/no_preview.png' %}" class="no-image">
+                    {% endif %}
+                    <span>{% trans 'item_status' %}:
+                        {% if elem.sender.status == "a" %}
+                            {% trans "perfect_st" %}
+                        {% elif elem.sender.status == "b" %}
+                            {% trans "used_st" %}
+                        {% else %}
+                            {% trans "item_status_undef" %}
+                        {% endif %}
+                    </span>
+                    <div class="form-zone">
+                        {% if elem.sender_is_request_user %}
+                            {% include "ad/cancel-offer.html" with id_=elem.id %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div><h1> >> </h1></div>
+                <div>
+                    <h3><a href="{% url 'show-ad' elem.receiver.id  %}">{{ elem.receiver.name }}</a></h3>
+                    {% if elem.receiver_ad_image %}
+                        <img src="{{ elem.receiver_ad_image.list_thumb }}">
+                    {% else %}
+                        <img src="{% static 'ad/images/no_preview.png' %}" class="no-image">
+                    {% endif %}
+                    <span>{% trans 'item_status' %}:
+                        {% if elem.receiver.status == "a" %}
+                            {% trans "perfect_st" %}
+                        {% elif elem.receiver.status == "b" %}
+                            {% trans "used_st" %}
+                        {% else %}
+                            {% trans "item_status_undef" %}
+                        {% endif %}
+                    </span>
+                    <div class="form-zone">
+                        {% if elem.receiver_is_request_user %}
+                            {% include "ad/offer-form.html" with id_=elem.id %}
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+    <noscript>
+        <div id="nav">
+            <span><a href="{{ items.previous }}">Prev</a></span>
+            <span><a href="{{ items.next }}">Next</a></span>
+        </div>
+        </noscript>
+{% endblock body %}
+{% block script %}
+    <script>
+        get_current_page = () => {return {{ current_page_num }};};
+    </script>
+    <script src="{% static 'ad/js/list-loader.js' %}"></script>
+{% endblock script %}

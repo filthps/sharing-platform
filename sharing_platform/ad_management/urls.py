@@ -1,9 +1,6 @@
 from django.urls import path
+from .views import AdItemsJsonLoader
 
 urlpatterns = [
-    path("post-ad/", name="post"),  # Опубликовать вещь для обмена
-    path("respond/<uuid:id_>/", name="respond"),  # Принять/отклонить
-    path("exchange/<uuid:sender_ad>/<uuid:receiver_ad>/", name="make-exchange"),  # Предложить обмен
-    path("edit/<uuid:ad_id>/", name="edit"),
-    path("delete/<uuid:ad_id>/", name="delete")
+    path("bulk-json-load/", AdItemsJsonLoader.as_view(), name="ad-json-loader")
 ]

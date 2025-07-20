@@ -1,9 +1,16 @@
 {% extends "base/main.html" %}
 {% load rest_framework %}
+{% load static %}
+{% load i18n %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'ad/css/post-item.css' %}">
+{% endblock head %}
 {% block body %}
-<form action="" method="post">
+<form method="post" class="add-ad" enctype="multipart/form-data">
     {% csrf_token %}
-    {% render_form form %}
-    <input type="submit" value="Save" />
+    {% render_form serializer  %}
+     <div class="col-sm-offset-2 col-sm-10">
+            <button type="submit" class="btn btn-default">{% trans "create_new_ad" %}</button>
+     </div>
 </form>
 {% endblock body%}

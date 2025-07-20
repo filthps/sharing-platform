@@ -1,0 +1,5 @@
+{% load i18n %}
+<form method="post">
+    {% csrf_token %}
+    <input type="submit" formaction="{% url 'destroy_offer' id_ %}" value="{% trans 'remove_ex' %}">
+</form>
