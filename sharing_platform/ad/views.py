@@ -32,11 +32,6 @@ class RequestTools:
             raise TypeError
         if request.query_params.get("format", None) == "json":
             return True
-        i = request.META.get("X-Requested_With", None)
-        if i is None:
-            return False
-        if i == "XMLHTTPRequest":
-            return True
         return False
 
 
@@ -58,27 +53,27 @@ class ShowAdItem(APIView, RequestTools):
 
 
 class CatalogPagination(PageNumberPagination):
-    page_size = 6
+    page_size = 3
     page_size_query_param = 'page_size'
-    max_page_size = 6
+    max_page_size = 1
 
 
 class AdCatalog(ListAPIView, APIView, RequestTools):
     """ Перечень всех предметов с разнообразными фильтрами. """
     serializer_class = AdItemSerializer
     pagination_class = CatalogPagination
-    renderer_classes = (TemplateHTMLRenderer,)
+    renderer_classes = (JSONRenderer, TemplateHTMLRenderer,)
 
     def get_queryset(self):
         if self.request.get_full_path().endswith("/all-my-items/"):
             return AdItem.objects.filter(owner=self.request.user)
         if self.request.get_full_path().endswith("/my/"):  # Получение списка предметов (мои предложения, адресованные другим предметам)
             return AdItem.objects.filter(id__in=ExchangeProposal.objects.filter(status="p").prefetch_related("sender").filter(
-                                             sender__owner_id=self.request.user.id).values("sender__id")
+                                             sender__owner_id=self.request.user.id).values("sender_id")
                                          )
         if self.request.get_full_path().endswith("/tome/"):  # Получение списка предметов (предложения для меня)
             return AdItem.objects.filter(id__in=ExchangeProposal.objects.filter(status="p").select_related("receiver").filter(
-                receiver__owner_id=self.request.user.id).values("receiver__id")
+                receiver__owner_id=self.request.user.id).values("receiver_id")
                                          )
         if self.request.get_full_path().endswith("/request/"):  # Список предметов, которым можно предложить обмен (я не жду одобрения) и не отправлял заявок
             big_query = ExchangeProposal.objects.filter(status="p").prefetch_related("sender").prefetch_related("receiver").exclude(
@@ -110,7 +105,7 @@ class AdCatalog(ListAPIView, APIView, RequestTools):
             return HttpResponseRedirect(status=HTTP_422_UNPROCESSABLE_ENTITY, redirect_to=request.get_full_path())
         resp_instance: Response = self.list(request, *args, **kwargs)
         if self._is_ajax_request(request):
-            return Response(data=json.dumps(resp_instance.data), headers=resp_instance.headers, status=HTTP_200_OK)
+            return Response(data=resp_instance.data["results"], headers=resp_instance.headers, status=HTTP_200_OK)
         return Response(template_name="ad/ad-items-list.html", status=HTTP_200_OK, headers=resp_instance.headers,
                         data={"items": resp_instance.data, "current_page_num": request.GET.get("page", 1)})
 
@@ -132,7 +127,7 @@ class AdCatalog(ListAPIView, APIView, RequestTools):
                 return False  # Пустой список ключевых слов
         status = request_data.get("status", None)
         if status is not None:
-            if status not in ["a", "b"]:
+            if status not in ["a", "b", "n"]:
                 return False
         category = request_data.get("cat", None)
         if category is not None:
