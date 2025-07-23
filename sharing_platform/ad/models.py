@@ -39,7 +39,7 @@ def uuid_validator(val):
 
 class ArticleCategory(models.Model):
     """ Категория предмета """
-    name = models.CharField(max_length=50, blank=False)
+    name = models.CharField(max_length=50, blank=False, unique=True)
     description = models.CharField(max_length=150, blank=True)
 
     def __str__(self):
@@ -68,7 +68,7 @@ class AdItem(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, blank=False, verbose_name=gettext("ad_item_owner"))
     status = models.CharField(max_length=1, choices=ITEM_CONDITION, default="n", blank=False,
                               validators=(status_item_validator,), verbose_name=gettext("ad_item_quality_status"))
-    exchange = models.ManyToManyField("ExchangeProposal", related_name="id+")
+    exchange = models.ManyToManyField("ExchangeProposal", blank=True, null=True, related_name="id+")
 
     def __str__(self):
         return self.name
