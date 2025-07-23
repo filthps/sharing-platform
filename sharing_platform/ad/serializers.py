@@ -1,9 +1,13 @@
 import uuid
 import typing
+from django import forms
 from django.db.transaction import atomic
 from django.utils.translation import gettext
 from rest_framework import serializers
-from .models import AdItem, ExchangeProposal
+from .models import AdItem, ExchangeProposal, ITEM_CONDITION, ArticleCategory
+
+
+MAX_COUNT_CATEGORY = 30  # Максимально допустимое кол-во категорий в рамках 1 запроса
 
 
 def check_exchange_item_status(value):
@@ -95,3 +99,20 @@ class OfferListSerializer(serializers.ModelSerializer):
     is_has_my_request = serializers.BooleanField(read_only=True, default=False)
     username_sender = serializers.CharField(read_only=True, default="")
     username_receiver = serializers.CharField(read_only=True, default="")
+
+
+def get_category_list(max_count=30):
+    i = list(ArticleCategory.objects.all()[:max_count].values_list("id", "name"))
+    i.extend([(0, gettext("show_items_only_from_category"))])
+    return i
+
+
+class AdListFilter(forms.Form):
+    """ Простой сериализатор только для чтения. Форма для фильтрации списков элементов,
+    подставляющая необязательные параметры в строку запроса. """
+    tags = forms.BooleanField(label=gettext("enable_tags_search"))
+    tags_list = forms.CharField(max_length=500, label="",
+                                widget=forms.Textarea({"placeholder": gettext("set_your_tags_from_name_or_desc"),
+                                                       "style": "display: none", "class": "tags"}))
+    status = forms.ChoiceField(choices=ITEM_CONDITION, label="", initial="n")
+    category = forms.ChoiceField(choices=lambda: get_category_list(MAX_COUNT_CATEGORY), label="", initial=0)
