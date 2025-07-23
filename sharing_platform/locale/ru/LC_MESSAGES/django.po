@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-20 22:40+0300\n"
+"POT-Creation-Date: 2025-07-22 16:19+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -44,7 +44,7 @@ msgstr "Ожидание одобрения"
 msgid "rejected"
 msgstr "Ваше предложение отклонено"
 
-#: .\ad\models.py:52 .\ad\serializers.py:22
+#: .\ad\models.py:52 .\ad\serializers.py:24
 msgid "ad_item_name"
 msgstr "Название предмета"
 
@@ -84,7 +84,7 @@ msgstr "Принимающий"
 msgid "created_at"
 msgstr "Создано"
 
-#: .\ad\models.py:88 .\ad\serializers.py:89
+#: .\ad\models.py:88
 msgid "exchange_proposal_himself_error"
 msgstr "Нельзя обменять предмет сам на себя"
 
@@ -92,50 +92,67 @@ msgstr "Нельзя обменять предмет сам на себя"
 msgid "offer_exchange_yourself_error"
 msgstr "Нельзя произвести обмен самому с собой"
 
-#: .\ad\serializers.py:58
+#: .\ad\serializers.py:59
 msgid "value_column_sender_ad_taken_current_user"
 msgstr ""
-"В качестве значения столбца sender_ad принимается предмет ПРЕДЛАГАЮЩЕГО "
-"пользователя (текущий request.user)"
+"В качестве значения столбца sender принимается предмет ПРЕДЛАГАЮЩЕГО "
+"пользователя (текущий request.user)В качестве значения столбца sender "
+"принимается предмет ПРЕДЛАГАЮЩЕГО пользователя (текущий request.user)"
 
-#: .\ad\serializers.py:60
+#: .\ad\serializers.py:61
 msgid "value_column_receiver_ad_cnt_be_self_user"
 msgstr ""
 "В качестве значения receiver_ad должен выступать потенциальный получатель "
-"предложения"
+"предложенияВ качестве значения receiver_ad должен выступать потенциальный "
+"получатель предложения"
 
-#: .\ad\templates\ad\ad-items-list.html:11
-#: .\ad\templates\ad\make-offer-list.html:18
-msgid "back_to_offer"
-msgstr "Назад к предмету"
+#: .\ad\serializers.py:103
+msgid "show_items_only_from_category"
+msgstr "Показать предметы только из категории"
 
-#: .\ad\templates\ad\ad-items-list.html:16
-#: .\ad\templates\ad\make-offer-list.html:23
-msgid "empty_at_now"
-msgstr "Пока что пусто :(("
+#: .\ad\serializers.py:111
+msgid "enable_tags_search"
+msgstr "Включить поиск по ключевым словам"
 
-#: .\ad\templates\ad\ad-items-list.html:28
+#: .\ad\serializers.py:113
+msgid "set_your_tags_from_name_or_desc"
+msgstr "Введите сюда ключевые слова из названия или описания"
+
+#: .\ad\serializers.py:115 .\ad\templates\ad\ad-items-list.html:30
 #: .\ad\templates\ad\make-offer-list.html:47
-#: .\ad\templates\ad\make-offer-list.html:69
+#: .\ad\templates\ad\make-offer-list.html:70
 #: .\ad\templates\ad\show_item.html:11
 msgid "item_status"
 msgstr "Состояние предмета"
 
-#: .\ad\templates\ad\ad-items-list.html:30
+#: .\ad\templates\ad\ad-items-list.html:13
+#: .\ad\templates\ad\make-offer-list.html:18
+msgid "back_to_offer"
+msgstr "Назад к предмету"
+
+#: .\ad\templates\ad\ad-items-list.html:19
+#: .\ad\templates\ad\make-offer-list.html:24
+msgid "empty_at_now"
+msgstr "Пока что пусто :(("
+
+#: .\ad\templates\ad\ad-items-list.html:32
 #: .\ad\templates\ad\make-offer-list.html:49
-#: .\ad\templates\ad\make-offer-list.html:71
+#: .\ad\templates\ad\make-offer-list.html:72
 #: .\ad\templates\ad\show_item.html:13
 msgid "perfect_st"
 msgstr "Новый"
 
-#: .\ad\templates\ad\ad-items-list.html:32
+#: .\ad\templates\ad\ad-items-list.html:34
 #: .\ad\templates\ad\make-offer-list.html:51
-#: .\ad\templates\ad\make-offer-list.html:73
+#: .\ad\templates\ad\make-offer-list.html:74
 #: .\ad\templates\ad\show_item.html:15
 msgid "used_st"
 msgstr "Б/У"
 
-#: .\ad\templates\ad\ad-items-list.html:34
+#: .\ad\templates\ad\ad-items-list.html:36
+#: .\ad\templates\ad\make-offer-list.html:53
+#: .\ad\templates\ad\make-offer-list.html:76
+#: .\ad\templates\ad\show_item.html:17
 msgid "item_status_undef"
 msgstr "Не указано"
 
@@ -171,43 +188,47 @@ msgstr "Обменяться"
 msgid "reject_ex"
 msgstr "Отказаться от предложения"
 
-#: .\ad\templates\ad\show_item.html:21
+#: .\ad\templates\ad\show_item.html:23
 msgid "see_input_ex"
 msgstr "Предложенные на обмен"
 
-#: .\ad\templates\ad\show_item.html:27
+#: .\ad\templates\ad\show_item.html:29
 msgid "see_output_ex"
 msgstr "Этот предмет предложен взамен"
 
-#: .\ad\templates\ad\show_item.html:42
+#: .\ad\templates\ad\show_item.html:44
 msgid "make-ax-page"
 msgstr "Хочу этот предмет!"
 
-#: .\ad\templates\ad\show_item.html:44
+#: .\ad\templates\ad\show_item.html:46
 msgid "show-ex-input-page"
 msgstr "Готовы предложить свои предметы за этот предмет..."
 
-#: .\ad\templates\ad\show_item.html:46
+#: .\ad\templates\ad\show_item.html:48
 msgid "show-ex-output-page"
 msgstr "Хозяин хочет поменять этот предмет на..."
 
-#: .\ad\templates\ad\show_item.html:48
+#: .\ad\templates\ad\show_item.html:50
 msgid "i-show-ex-output-page"
 msgstr "Ожидаю рассмотрения..."
 
-#: .\ad\views.py:187
+#: .\ad\views.py:192
 msgid "ad_not_fount"
 msgstr "Предмет не найден"
 
-#: .\ad\views.py:195
+#: .\ad\views.py:198
+msgid "ex_already_exist"
+msgstr "Данный предмет уже добавлен"
+
+#: .\ad\views.py:208
 msgid "ex_offer_send_successful"
 msgstr "Сделка состоялась"
 
-#: .\ad\views.py:222 .\ad\views.py:224
+#: .\ad\views.py:239
 msgid "offer_deleted"
 msgstr "Обмен отклонён"
 
-#: .\ad\views.py:335 .\ad\views.py:367
+#: .\ad\views.py:357 .\ad\views.py:389
 msgid "does_not_exist"
 msgstr "Не найдено"
 
