@@ -31,13 +31,14 @@
     {% endif %}
 <div id="main">
     {% block body %}{% endblock body %}
+    <div id="foot"></div>
 </div>
     <script>
          get_token = () => {
             return "{{ csrf_token }}";
          };
     </script>
-<script src="{% static 'ad/js/forms.js' %}"></script>
+<script src="{% static 'base/js/forms.js' %}"></script>
 {% block script %}{% endblock script %}
 </body>
 </html>
