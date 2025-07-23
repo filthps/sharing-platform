@@ -2,10 +2,12 @@
 {% extends "base/main.html" %}
 {% load i18n %}
 {% load static %}
+{% load list_filter %}
 {% block head %}
     <link rel="stylesheet" href="{% static 'ad/css/ad_list.css' %}">
 {% endblock head %}
 {% block body %}
+    {% list_filter %}
     {% if target_ad_id %}
       <div class="back-to-item">
             <h2><a href="{% url 'show-ad' target_ad_id %}">{% trans 'back_to_offer' %}</a></h2>
@@ -56,6 +58,10 @@
 {% block script %}
     <script>
         get_current_page = () => {return {{ current_page_num }};};
+        get_text = () => {
+            return JSON.parse('{"item_status": "{% trans 'item_status' %}", "n": "{% trans 'item_status_undef' %}", "a": "{% trans 'new' %}", "b": "{% trans 'user' %}"}')
+        };
     </script>
     <script src="{% static 'ad/js/list-loader.js' %}"></script>
+    <script src="{% static 'ad/js/filter.js' %}"></script>
 {% endblock script %}

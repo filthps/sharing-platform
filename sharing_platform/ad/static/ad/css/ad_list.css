@@ -8,6 +8,13 @@
     text-align: center;
     display: grid;
     }
+.items_row li a {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    width: 96%;
+}
 .items_row li .no-image, .items_row li img {
     width: 40%;
     height: auto;
@@ -46,3 +53,9 @@ padding: 0;
 margin: 0;
 height: auto;
 }
+#filter {
+padding: 10px;
+min-height: 40px;
+border-bottom-color: #FFF;
+}
+#filter label {color: #531100; font-weight: normal;}
